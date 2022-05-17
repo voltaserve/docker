@@ -59,6 +59,64 @@ services:
     volumes:
       - redis:/data
     restart: on-failure
+  idp:
+    container_name: voltaserve-idp
+    image: voltaserve/idp
+    build:
+      context: ../voltaserve-idp
+    depends_on:
+      - db
+      - search
+      - s3
+    ports:
+      - "7000:7000"
+    environment:
+      - URL=http://localhost:7000
+      - WEB_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://voltaserve:voltaserve@db:5432/voltaserve
+      - SEARCH_URL=http://search:7700
+      - S3_URL=http://s3:9000
+      - SMTP_HOST=smtp
+      - SMTP_PORT=25
+    restart: on-failure
+  api:
+    container_name: voltaserve-api
+    image: voltaserve/api
+    build:
+      context: ../voltaserve-api
+    depends_on:
+      - db
+      - redis
+      - s3
+      - search
+    ports:
+      - "5000:5000"
+    environment:
+      - URL=http://localhost:5000
+      - WEB_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://voltaserve:voltaserve@db:5432/voltaserve
+      - S3_URL=s3:9000
+      - SEARCH_URL=http://search:7700
+      - REDIS_ADDR=redis:6379
+      - SMTP_HOST=smtp
+      - SMTP_PORT=25
+    restart: on-failure
+  ui:
+    container_name: voltaserve-ui
+    image: voltaserve/ui
+    build:
+      context: ../voltaserve-ui
+      args:
+        - API_URL=http://api:5000
+        - IDP_URL=http://idp:7000
+    depends_on:
+      - idp
+      - api
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: on-failure
   adminer:
     container_name: voltaserve-adminer
     image: adminer:4.8.1
